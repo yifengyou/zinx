@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"zinx/utils"
 	"zinx/ziface"
 )
@@ -67,6 +68,8 @@ func (dp *DataPack) UnPack(binaryData []byte) (ziface.IMessage, error) {
 	}
 	//判断datalen是否超出最大包长度
 	if utils.GlobalObject.MaxPackageSize > 0 && msg.DataLen > utils.GlobalObject.MaxPackageSize {
+		fmt.Println("msg.DataLen", msg.DataLen)
+		fmt.Println("maxPackageSize", utils.GlobalObject.MaxPackageSize)
 		return nil, errors.New("too large message data receive!")
 	}
 

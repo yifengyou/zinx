@@ -65,5 +65,5 @@ func init() {
 		MaxPackageSize: 4096,
 	}
 	// 应该尝试从conf/zinx.json配置文件中加载用户自定义参数
-	GlobalObject.Reload()
+	//GlobalObject.Reload()
 }
