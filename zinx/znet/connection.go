@@ -25,6 +25,7 @@ type Connection struct {
 	//handleAPI ziface.HandlerFunc
 
 	// 告知当前连接已经退出/停止的channel
+	// 由Reader告知Writer退出，读都不行肯定要关写
 	ExitChan chan bool
 
 	//该连接处理的方法Router
@@ -32,6 +33,9 @@ type Connection struct {
 
 	// 消息的管理MsgID和对应的处理业务API关系
 	MsgHandler ziface.IMsgHandle
+
+	// 添加无缓冲管道用于读写goroutine通信
+	msgChan chan []byte
 }
 
 // 连接的读业务方法
@@ -85,9 +89,9 @@ func (c *Connection) StartReader() {
 		}
 		//执行注册的路由方法
 		//go func(request ziface.IRequest) {
-			//c.Router.PreHandle(request)
-			//c.Router.Handle(request)
-			//c.Router.PostHandle(request)
+		//c.Router.PreHandle(request)
+		//c.Router.Handle(request)
+		//c.Router.PostHandle(request)
 		//}(&req)
 
 		// 从路由中，找到注册绑定的Conn对应的router调用
@@ -96,13 +100,37 @@ func (c *Connection) StartReader() {
 	}
 }
 
+/*
+	写消息GoRoutine，专门发送给客户端消息的模块
+	客户端将要写的消息发送给写者就行
+*/
+func (c *Connection) StartWriter() {
+	fmt.Println("Writer Goroutine is running...")
+
+	defer fmt.Println(c.RemoteAddr().String(), "[conn writer exit!]")
+	// 不断阻塞等待channel消息，进行写给客户端
+	for {
+		select {
+		case data := <-c.msgChan:
+			// 有消息写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("Send data err!", err)
+				return
+			}
+		case <-c.ExitChan:
+			// reader告诉退出writer
+			return
+		}
+	}
+}
+
 // 启动连接，让当前连接准备开始工作
 func (c *Connection) Start() {
 	fmt.Println("Conn Start() ... ConnID=", c.ConnID)
 	// 启动从当前连接的读数据的业务
-	// TODO 启动从当前连接写数据的业务
 	go c.StartReader()
-	// 阻塞
+	// 启动从当前连接写数据的业务
+	go c.StartWriter()
 }
 
 // 停止当前连接，结束当前连接工作
@@ -118,7 +146,12 @@ func (c *Connection) Stop() {
 	// 关闭socket连接
 	c.Conn.Close()
 
+	// 告知writer关闭
+	c.ExitChan <- true
+
 	// 回收资源
+	close(c.ExitChan)
+	close(c.msgChan)
 }
 
 // 获取当前连接绑定的socket conn
@@ -151,10 +184,16 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 		fmt.Println("package message error", err, " msgID=", msgId)
 		return errors.New("package message err")
 	}
-	if _, err := c.Conn.Write(binaryMsg); err != nil {
-		fmt.Println("Wirte msg id=", msgId, "error", err)
-		return errors.New("conn Write err")
-	}
+
+	// 读者肩负写任务
+	//if _, err := c.Conn.Write(binaryMsg); err != nil {
+	//	fmt.Println("Wirte msg id=", msgId, "error", err)
+	//	return errors.New("conn Write err")
+	//}
+
+	// 将数据发给写客户端
+	c.msgChan <- binaryMsg
+
 	return nil
 }
 
@@ -169,6 +208,7 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandl
 		MsgHandler: msgHandler,
 		isClosed:   false,
 		ExitChan:   make(chan bool, 1),
+		msgChan:    make(chan []byte),
 	}
 	return c
 }
