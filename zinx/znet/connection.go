@@ -28,7 +28,10 @@ type Connection struct {
 	ExitChan chan bool
 
 	//该连接处理的方法Router
-	Router ziface.IRouter
+	//Router ziface.IRouter
+
+	// 消息的管理MsgID和对应的处理业务API关系
+	MsgHandler ziface.IMsgHandle
 }
 
 // 连接的读业务方法
@@ -81,12 +84,15 @@ func (c *Connection) StartReader() {
 			msg:  msg,
 		}
 		//执行注册的路由方法
-		go func(request ziface.IRequest) {
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
-		}(&req)
+		//go func(request ziface.IRequest) {
+			//c.Router.PreHandle(request)
+			//c.Router.Handle(request)
+			//c.Router.PostHandle(request)
+		//}(&req)
+
 		// 从路由中，找到注册绑定的Conn对应的router调用
+		// 根据绑定好的MsgID找到对应的处理API业务
+		go c.MsgHandler.DoMsgHandler(&req)
 	}
 }
 
@@ -153,14 +159,16 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 }
 
 // 初始化连接模块的方法
-func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
+//func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		Conn:   conn,
 		ConnID: connID,
 		//handleAPI: callback_api,
-		Router:   router,
-		isClosed: false,
-		ExitChan: make(chan bool, 1),
+		//Router:   router,
+		MsgHandler: msgHandler,
+		isClosed:   false,
+		ExitChan:   make(chan bool, 1),
 	}
 	return c
 }
