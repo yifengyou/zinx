@@ -96,7 +96,11 @@ func (c *Connection) StartReader() {
 
 		// 从路由中，找到注册绑定的Conn对应的router调用
 		// 根据绑定好的MsgID找到对应的处理API业务
-		go c.MsgHandler.DoMsgHandler(&req)
+		//go c.MsgHandler.DoMsgHandler(&req)
+
+		// 放到工作池中处理
+		c.MsgHandler.SendMsgToTaskQueue(&req)
+
 	}
 }
 
