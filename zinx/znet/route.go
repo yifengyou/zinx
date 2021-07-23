@@ -12,7 +12,7 @@ type BaseRouter struct{}
 func (b *BaseRouter) PreHandle(request ziface.IRequest) {}
 
 // 在处理conn业务的主方法hook
-func (b *BaseRouter) PHandle(reqest ziface.IRequest) {}
+func (b *BaseRouter) Handle(reqest ziface.IRequest) {}
 
 // 在处理conn业务之后的钩子方法hook
-func (b *BaseRouter) PPostHandle(request ziface.IRequest) {}
+func (b *BaseRouter) PostHandle(request ziface.IRequest) {}
