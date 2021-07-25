@@ -72,12 +72,33 @@ func DoConnectionBegin(conn ziface.IConnection) {
 		fmt.Println(err)
 	}
 
+	// 给单签连接设置属性
+	fmt.Println("Set conn property ok...")
+	conn.SetProperty("Name", "yifengyou")
+	conn.SetProperty("Github", "https://github.com/yifengyou")
+	conn.SetProperty("Gitee", "https://gitee.com/yifengyou")
 }
 
 // 关闭连接之执行钩子函数
 func DoConnectionLost(conn ziface.IConnection) {
 	fmt.Println("DoConnectionLost is called ...")
 	fmt.Println("conn ID=", conn.GetConnID(), "is lost...")
+
+	if value, err := conn.GetProperty("Name"); err != nil {
+		fmt.Println("Get property failed!")
+	} else {
+		fmt.Println("Name=", value)
+	}
+	if value, err := conn.GetProperty("Github"); err != nil {
+		fmt.Println("Get property failed!")
+	} else {
+		fmt.Println("Github=", value)
+	}
+	if value, err := conn.GetProperty("Gitee"); err != nil {
+		fmt.Println("Get property failed!")
+	} else {
+		fmt.Println("Gitee=", value)
+	}
 }
 
 func main() {
