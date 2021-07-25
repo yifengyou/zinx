@@ -23,20 +23,47 @@ type Connection struct {
 	isClosed bool
 
 	// 当前连接锁绑定的处理业务方法
-	//handleAPI ziface.HandlerFunc
+	// handleAPI ziface.HandlerFunc
 
 	// 告知当前连接已经退出/停止的channel
 	// 由Reader告知Writer退出，读都不行肯定要关写
 	ExitChan chan bool
 
-	//该连接处理的方法Router
-	//Router ziface.IRouter
+	// 该连接处理的方法Router
+	// Router ziface.IRouter
 
 	// 消息的管理MsgID和对应的处理业务API关系
 	MsgHandler ziface.IMsgHandle
 
 	// 添加无缓冲管道用于读写goroutine通信
 	msgChan chan []byte
+
+	// zinx_v0.9添加连接管理模块
+	// 当前conn隶属于那个server
+	TcpServer ziface.IServer
+}
+
+// 初始化连接模块的方法
+// func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
+func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
+	c := &Connection{
+		TcpServer: server,
+		Conn:      conn,
+		ConnID:    connID,
+		//handleAPI: callback_api,
+		//Router:   router,
+		MsgHandler: msgHandler,
+		isClosed:   false,
+		ExitChan:   make(chan bool, 1),
+		msgChan:    make(chan []byte),
+	}
+
+	// zinx_v0.9添加连接管理模块
+	// 将conn加入到ConnMaanger中
+	// 通过c找到server，绑定关系
+	c.TcpServer.GetConnMgr().Add(c)
+
+	return c
 }
 
 // 连接的读业务方法
@@ -160,6 +187,9 @@ func (c *Connection) Stop() {
 	// 告知writer关闭
 	c.ExitChan <- true
 
+	//zinx_v0.9添加连接管理模块
+	c.TcpServer.GetConnMgr().Remove(c)
+
 	// 回收资源
 	close(c.ExitChan)
 	close(c.msgChan)
@@ -206,20 +236,4 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	c.msgChan <- binaryMsg
 
 	return nil
-}
-
-// 初始化连接模块的方法
-//func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
-	c := &Connection{
-		Conn:   conn,
-		ConnID: connID,
-		//handleAPI: callback_api,
-		//Router:   router,
-		MsgHandler: msgHandler,
-		isClosed:   false,
-		ExitChan:   make(chan bool, 1),
-		msgChan:    make(chan []byte),
-	}
-	return c
 }

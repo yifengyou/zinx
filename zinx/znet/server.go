@@ -23,6 +23,27 @@ type Server struct {
 
 	//当前server的消息管理，用来绑定MsgID和对应的处理业务API关系
 	MsgHandler ziface.IMsgHandle
+
+	//zinx_v0.9添加连接管理模块
+	// 该server的连接管理器
+	ConnMgr ziface.IConnManager
+}
+
+/*
+	初始化Server模块的方法
+*/
+func NewServer(name string) ziface.IServer {
+	s := &Server{
+		Name:      utils.GlobalObject.Name,
+		IPVersion: "tcp4",
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
+		//Router:    nil,
+		MsgHandler: NewMsgHandle(),
+		//zinx_v0.9添加连接管理模块
+		ConnMgr: NewConnManager(),
+	}
+	return s
 }
 
 //// 定义当前客户端连接所绑定的handle api（目前这个handle是写死的，以后优化应该有用户去自定义这个handle）
@@ -79,10 +100,22 @@ func (s *Server) Start() {
 				continue
 			}
 
+			//zinx_v0.9添加连接管理模块
+			// 设置最大连接个数判断，如果超过最大连接数量，则关闭此新连接
+			if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+				//TODO 给客户端相应一个超出最大连接数的错误包
+				fmt.Println("Too Many Connection MaxConn=", utils.GlobalObject.MaxConn)
+				conn.Close()
+				continue
+			}
+
 			// 将处理新连接的业务方法和conn进行绑定，得到我们的连接模块
 			//dealConn := NewConnection(conn, cid, CallBackToClient)
 			//dealConn := NewConnection(conn, cid, s.Router)
-			dealConn := NewConnection(conn, cid, s.MsgHandler)
+
+			//zinx_v0.9添加连接管理模块
+			//dealConn := NewConnection(conn, cid, s.MsgHandler)
+			dealConn := NewConnection(s, conn, cid, s.MsgHandler)
 			cid++
 
 			// 启动当前连接业务处理
@@ -94,7 +127,10 @@ func (s *Server) Start() {
 //停止服务器
 func (s *Server) Stop() {
 	// TODO 将一些服务器资源，状态或者已经开辟的连接信息，进行停止或者回收
-
+	// zinx_v0.9添加连接管理模块
+	// 清空连接
+	fmt.Println("[STOP] Zinx server name", s.Name)
+	s.ConnMgr.ClearConn()
 }
 
 //运行服务
@@ -114,17 +150,6 @@ func (s *Server) AddRouter(msgID uint32, router ziface.IRouter) {
 	fmt.Println("Add Router Success!!")
 }
 
-/*
-	初始化Server模块的方法
-*/
-func NewServer(name string) ziface.IServer {
-	s := &Server{
-		Name:      utils.GlobalObject.Name,
-		IPVersion: "tcp4",
-		IP:        utils.GlobalObject.Host,
-		Port:      utils.GlobalObject.TcpPort,
-		//Router:    nil,
-		MsgHandler: NewMsgHandle(),
-	}
-	return s
+func (s *Server) GetConnMgr() ziface.IConnManager {
+	return s.ConnMgr
 }
