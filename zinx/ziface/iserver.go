@@ -14,4 +14,13 @@ type IServer interface {
 	AddRouter(msgID uint32, router IRouter)
 	//zinx_v0.9添加连接管理模块
 	GetConnMgr() IConnManager
+	// 注册OnStart钩子函数方法
+	SetOnConnStart(func (connection IConnection))
+	// 注册OnStop钩子函数方法
+	SetOnConnStop(func (connection IConnection))
+	// 调用OnStart钩子函数方法
+	CallOnConnStart(connection IConnection)
+	// 调用OnStop钩子函数方法
+	CallOnConnStop(connection IConnection)
+
 }

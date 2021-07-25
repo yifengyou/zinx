@@ -169,6 +169,10 @@ func (c *Connection) Start() {
 	go c.StartReader()
 	// 启动从当前连接写数据的业务
 	go c.StartWriter()
+
+	//zinx_v0.9添加连接管理模块
+	// 按照开发者传递进来的创建连接之后需要调用的处理业务，执行对应的hook函数
+	c.TcpServer.CallOnConnStart(c)
 }
 
 // 停止当前连接，结束当前连接工作
@@ -180,6 +184,10 @@ func (c *Connection) Stop() {
 		return
 	}
 	c.isClosed = true
+
+	//zinx_v0.9添加连接管理模块
+	// 按照开发者传递进来的销毁连接之后需要调用的处理业务，执行对应的hook函数
+	c.TcpServer.CallOnConnStop(c)
 
 	// 关闭socket连接
 	c.Conn.Close()
