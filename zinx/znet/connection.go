@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"zinx/utils"
 	"zinx/ziface"
 )
@@ -41,6 +42,12 @@ type Connection struct {
 	// zinx_v0.9添加连接管理模块
 	// 当前conn隶属于那个server
 	TcpServer ziface.IServer
+
+	// 连接属性集合
+	property map[string]interface{}
+
+	// 保护连接属性的锁
+	propertyLock sync.RWMutex
 }
 
 // 初始化连接模块的方法
@@ -244,4 +251,33 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	c.msgChan <- binaryMsg
 
 	return nil
+}
+
+// 设置连接属性
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	// 添加属性
+	c.property[key] = value
+}
+
+// 获取连接里属性
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.RLock()
+	defer c.propertyLock.RUnlock()
+	if value, ok := c.property[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no property found!")
+	}
+}
+
+// 移除连接属性
+func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	// 删除属性
+	delete(c.property, key)
 }
